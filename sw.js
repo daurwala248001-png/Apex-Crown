@@ -2,7 +2,7 @@
    Ship an update by changing VERSION (bump_version.py does this for you).
    A new worker installs in the background and waits; the app shows an
    "Update ready" banner and the new version only takes over when the user taps Restart. */
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const CACHE = 'apex-crown-' + VERSION;
 const FONTS = 'fonts-apex';
 const SHELL = [
