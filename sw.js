@@ -1,9 +1,8 @@
 /* Apex Crown service worker.
-   Ship an update by changing VERSION (bump_version.py does this for you).
-   A new worker installs in the background and waits; the app shows an
-   "Update ready" banner and the new version only takes over when the user taps Restart. */
-const VERSION = '1.1.0';
-const CACHE = 'apex-crown-' + VERSION;
+   This file does not need to change for normal updates. The app page checks
+   index.html for a newer version by itself, so shipping an update means
+   replacing index.html only. */
+const CACHE = 'apex-crown-app';
 const FONTS = 'fonts-apex';
 const SHELL = [
   './',
@@ -16,7 +15,11 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
+  e.waitUntil((async () => {
+    const c = await caches.open(CACHE);
+    await Promise.all(SHELL.map((u) => c.add(new Request(u, { cache: 'reload' })).catch(() => {})));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('message', (e) => {
@@ -26,7 +29,7 @@ self.addEventListener('message', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter((k) => k.startsWith('apex-crown-') && k !== CACHE).map((k) => caches.delete(k)));
+    await Promise.all(keys.filter((k) => k !== CACHE && k !== FONTS).map((k) => caches.delete(k)));
     await self.clients.claim();
   })());
 });
@@ -37,17 +40,26 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
 
   if (url.origin === self.location.origin) {
-    /* version.json is always read from the network so update checks are honest */
-    if (url.pathname.endsWith('/version.json')) return;
+    /* update checks (?chk=) always go to the network */
+    if (url.searchParams.has('chk')) return;
+    const isPage = req.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname.endsWith('/');
     e.respondWith((async () => {
-      const hit = await caches.match(req, { ignoreSearch: true });
+      const cache = await caches.open(CACHE);
+      const hit = await cache.match(req, { ignoreSearch: true });
+      if (isPage) {
+        /* show the saved page at once, refresh it in the background */
+        const net = fetch(new Request(req.url, { cache: 'no-cache' }))
+          .then((res) => { if (res.ok) cache.put(req, res.clone()); return res; })
+          .catch(() => null);
+        e.waitUntil(net);
+        return hit || (await net) || (await cache.match('index.html')) || Response.error();
+      }
       if (hit) return hit;
       try {
         const res = await fetch(req);
-        if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+        if (res.ok) cache.put(req, res.clone());
         return res;
       } catch (err) {
-        if (req.mode === 'navigate') { const shell = await caches.match('index.html'); if (shell) return shell; }
         return Response.error();
       }
     })());

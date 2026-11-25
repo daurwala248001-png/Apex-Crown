@@ -1,8 +1,8 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "notes": [
-    "Meet Apex: a new helmeted mascot who follows your cursor, reacts to the beat and cheers when tapped",
-    "Centered controls, smarter shuffle with history, favorites, search and sort",
-    "New speed, EQ presets and sleep timer, plus listening stats"
+    "Voice button: sing along for an accuracy score out of 100, or use voice commands",
+    "A secret folder to hide tracks, opened by a spoken passphrase",
+    "From now on updates need only one file: index.html"
   ]
 }
